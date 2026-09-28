@@ -24,7 +24,11 @@ ROQ/
                              Not needed to just run ROQ.
 ```
 
+<br>
+<br>
+
 ## Quick start: score your own BAM
+> Requires [Git LFS](https://git-lfs.com) to download the model files — see [Model files](#model-files).
 
 ```bash
 # 1. Extract features
@@ -76,6 +80,19 @@ version-compatibility fallback — `pickle` can break across major XGBoost
 versions, `save_model()`'s format is guaranteed forward-compatible. Load
 whichever fits your code; `predROQ.py` uses the pickle by default.
 
+> **Note:** Both model files are stored with [Git LFS](https://git-lfs.com).
+> A plain `git clone` without Git LFS (common on Linux servers) or the
+> "Download ZIP" button downloads only small pointer files (~134 bytes),
+> and `predROQ.py` will fail when loading the model. To fetch the actual files:
+>
+> ```bash
+> conda install -c conda-forge git-lfs   # or: sudo apt install git-lfs / brew install git-lfs
+> git lfs install
+> git lfs pull                           # run inside the ROQ directory
+> ls -lh model/                          # model.pkl ≈ 99 MB, model.json ≈ 140 MB
+> ```
+
+
 ## Reproducing the manuscript's results
 
 See [`evaluation/README.md`](evaluation/README.md).
@@ -83,3 +100,9 @@ See [`evaluation/README.md`](evaluation/README.md).
 ## License
 
 MIT. See `LICENSE`.
+
+## Contact
+
+For questions or issues, please contact: 
+- ibclab.kr@gmail.com
+- qkrskdud0805@gmail.com
