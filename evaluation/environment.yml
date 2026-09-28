@@ -1,0 +1,33 @@
+name: roq-evaluation
+
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - python=3.8.12
+
+  # ROQ
+  - numpy=1.22.4
+  - pandas=1.5.3
+  - scikit-learn=1.2.2
+  - xgboost=1.7.6
+  - pysam=0.19.1
+
+  # Statistical analysis / optimization
+  - scipy=1.10.1
+  - optuna=3.2.0
+  - joblib=1.3.1
+
+  # Visualization
+  - matplotlib=3.5.1
+  - seaborn=0.12.2
+
+  # External bioinformatics tools
+  - samtools=1.9
+  - bcftools=1.9
+  - htslib=1.9
+  - bedops=2.4.38
+
+  # Perl scripts
+  - perl=5.26.1

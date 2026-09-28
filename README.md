@@ -1,93 +1,85 @@
-# ROQ
-Next-generation sequencing (NGS) has advanced genomic research, highlighting the need for accurate read alignment metrics. The Read Overlapping Quality (ROQ) score is a novel machine-learning-based metric that predicts the overlap between a read’s true origin and its mapped position. Unlike conventional metrics, ROQ better reflects true read origins, even in complex genomic regions, enhancing downstream analyses by reducing misalignment and improving read quality assessment.
+# ROQ (Read Overlapping Quality)
 
+ROQ is an XGBoost-based read alignment quality metric that predicts how well
+a mapped read's reported position overlaps its true origin. It is designed
+as a drop-in complement to MAPQ, and is described in the accompanying
+manuscript.
 
-## Generate ROQ with example data
-```bash
-# Clone the repository
-git clone https://github.com/jkimlab/ROQ/
-cd ./ROQ/example/
-
-#Feature extraction
-perl ../bin/ExtractFeatures.pl example.sam  1> feature.txt 2> log
-
-#Predict ROQ
-python ../bin/predROQ.py -i feature.txt -ib example.sam -m ../model/hg38_bowtie_model.pkl -o ./ 
-
-# View the updated BAM file
-samtools view output.bam  
+## Directory structure
 
 ```
-
-## Commands
-```bash
-#Feature extraction
-perl [path to ROQ bin]/ExtractFeatures.pl [user input read alignment]  1> feature.txt 2> log
-
-#Predict ROQ
-python [path to ROQ bin]/predROQ.py -i feature.txt -ib [user input read alignment] -m [path to ROQ model]/hg38_bowtie_model.pkl -o [output directory] 
-
+ROQ/
+├── README.md
+├── LICENSE
+├── environment.yml        Minimal environment: run ROQ on your own BAM
+├── bin/
+│   ├── ExtractFeatures.pl Feature extraction (BAM/SAM/BED -> feature TSV)
+│   └── predROQ.py         Applies the trained model, tags reads with ZQ
+├── example/                Small example input + expected output
+├── model/
+│   ├── model.pkl           Final trained model (pickle)
+│   └── model.json          Same model, XGBoost's native format (see below)
+└── evaluation/              Scripts used to produce the manuscript's
+                             tables and figures -- see evaluation/README.md.
+                             Not needed to just run ROQ.
 ```
 
+## Quick start: score your own BAM
 
-## Input - Output example
-- Input: `.SAM` or `.BAM` formatted read alignment
-- `feature.txt`: extracted features for each read
-  ```text
-  READ_NAME	MAPQ	ALIGN_SCORE	SECONDARY_ALIGN_SCORE	MISMATCHES	GAP_OPENS	GAP_EXT	EDIT_DIST	MATE_ALIGNMENT_SCORE	ALIGN_SCORE_DIFF	INSERT_SIZE	READ_GC_CONT	N_LOW_QUALITY_BASE	AVG_QUALITY_BASE_SCORE
-  1-26020508	30	0	-5	0	0	0	0	0	5	200	0.533	0	69.540
-  1-26020508	30	0	-5	0	0	0	0	0	5	-200	0.513	0	70.140
-  1-26020324	33	-2	-90	1	0	0	1	0	88	192	0.407	0	68.387
-  1-26020324	33	0	-78	0	0	0	0	-2	78	-192	0.407	0	69.607
-  1-26020524	27	-2	-80	1	0	0	1	0	78	193	0.373	0	69.500
-  1-26020524	27	0	-73	0	0	0	0	-2	73	-193	0.420	0	69.280
-  ```
-- Output: `output.bam`, ROQ tag appended read alignment in `.BAM` format file.
-  ```text
-  #results of
-  $samtoole view output.bam
-  
-  1-26020332      99      1       108376487       42      150M    =       108376538       201     TTTTATTGTGTACAGGTGTGTTTTCTATTCCTGCTATCTCCATGACTTTTAAGATGAGGGGACATTAGAATGTGTCAAAGGCTTTTTTCAGCATCTAGTGAAATGATCATGCATTAGTGTGTGTGTGTGAGTGTTTGTGTGTTCTGTAAG   =CCGGGGGGGGGGJCJJJGJJJJJJJJGJJJJGJGJJGGJJJJGJJJJGCGJCCG=JCGJJJGCGJGC=JCGGJGGGGCGGGCGGG=GGCGG8=GGGGGGJGGCGCGGGG=GGGGCCG=CCGGCGGGGGGGGC=(=CGGCGGCCC=GGGC   AS:i:-2 XN:i:0  XM:i:1  XO:i:0  XG:i:0  NM:i:1  MD:Z:134G15     YS:i:-3 YT:Z:CP RQ:f:1.29227
-  1-26020332      147     1       108376538       42      150M    =       108376487       -201    AGATGAGGGGACATTAGAATGTGTCAAAAGCTTTTTTCAGCATCTAGTGAAATGATCATGCATTAGTGTGTGTGTGTGAGTGTGTGTGTGTTCTGTAAGTTTCTTTATATGGTGGATTAAATTGTACTTTTGTATGTTGAACCATTCCTG   GGGGGC1GGG=G=GGCGGGCGGGGGGCG1GCCG8G1GCGGGCCJ=JJCGGGCGGCGGGCGG=GGGCC8CCCGCC1GCGGGCGCCGG=JCCJJGGGGJCJG=CJJJCJJJCCCGJCJGJJGJGJJJGJJCJJJGJJJJGGGGGGGGGG==C   AS:i:-3 XN:i:0  XM:i:1  XO:i:0  XG:i:0  NM:i:1  MD:Z:28G121     YS:i:-2 YT:Z:CP RQ:f:1.29227
-  ```
+```bash
+# 1. Extract features
+perl bin/ExtractFeatures.pl input.bam > features.tsv
 
-## ROQ tag (Read Overlap Quality tag, represented as RQ:f:value)
-The ROQ tag, which stands for Read Overlap Quality, is added to each read in the BAM file by this tool. This custom tag represents a quantitative metric that evaluates how accurately a read overlaps with its true genomic origin. It serves as a more reliable alternative to traditional alignment quality metrics like MAPQ.
+# 2. Score reads and tag the BAM
+python bin/predROQ.py \
+  --feature-set portable_no_scores \
+  -m model/model.pkl \
+  -i features.tsv \
+  -ib input.bam \
+  -head 0 \
+  -o output_dir/
+```
 
-### Details of the ROQ Tag
-- **Full Name**: Read Overlap Quality
-- **Type**: Floating-point value
-- **Purpose**: Quantify the overlap between the read's mapped position and its true origin.
-- **Key Benefit**: Provides a robust metric for filtering misaligned reads or assessing alignment quality.
-- **Example**: `RQ:f:1.29227`
-  
+The tagged BAM is written to `output_dir/output.bam`, with a `ZQ:f:<value>`
+tag on every read that had a matching row in `features.tsv`. `ZQ` ranges
+from 0 to 42, on the same scale as MAPQ:
 
+```
+ZQ = 42 / (1 + exp(-10 * (p - 0.5)))
+```
 
+where `p` is the model's raw predicted overlap probability. We use `ZQ`
+rather than `RQ` because PacBio HiFi/CCS BAMs already carry a native
+`RQ:f:` tag (predicted read quality from CCS); reusing that tag would
+silently collide with it. `Z*` tags are reserved by the SAM spec for
+local/custom use.
 
-## Requirements
+See `example/` for a worked input/output pair you can use to sanity-check
+your own install.
 
-### System Requirements
+### Feature set
 
-| Software          | Version       | Installation Guide                                    |
-|--------------------|---------------|------------------------------------------------------|
-| **Perl**          | 5.30.0 or higher | [Perl Installation Guide](https://www.perl.org/get.html) |
-| **Python**        | 3.8.12 or higher | [Python Downloads](https://www.python.org/downloads/)  |
-| **Samtools**      | 1.9  | [Samtools GitHub](https://github.com/samtools/samtools) |
-| **convert2bed**   | 2.4.38        | [bedops Github](https://github.com/bedops/bedops)     |
+The released model uses 9 features (`--feature-set portable_no_scores`):
+`MAPQ, MISMATCHES, GAP_OPENS, GAP_EXT, EDIT_DIST, INSERT_SIZE,
+READ_GC_CONT, N_LOW_QUALITY_BASE, AVG_QUALITY_BASE_SCORE`.
 
-### Required Perl Modules
-- `Cwd` (Core module)
-- `FindBin` (Core module)
+`--feature-set full` (13 features, adding aligner-score fields) is 
+also accepted by both scripts, but is for evaluation/ use only and 
+is not compatible with the released model.
 
-### Required Python Libraries
-| Library         | Version   | Installation Command               |
-|------------------|-----------|------------------------------------|
-| `pandas`        | 1.5.3     | `pip install pandas==1.5.3`        |
-| `numpy`         | 1.23.0    | `pip install numpy==1.23.0`        |
-| `pysam`         | 0.22.0    | `pip install pysam==0.22.0`        |
-| `scikit-learn`  | 1.2.2     | `pip install scikit-learn==1.2.2`  |
-| `xgboost`       | 1.7.6     | `pip install xgboost==1.7.6`       |
+### Model files
 
+`model/model.pkl` is a pickled `xgboost.XGBRegressor` (9 features, 24,000
+boosted rounds). `model/model.json` is the same model exported with
+XGBoost's own `Booster.save_model()`, kept alongside the pickle as a
+version-compatibility fallback — `pickle` can break across major XGBoost
+versions, `save_model()`'s format is guaranteed forward-compatible. Load
+whichever fits your code; `predROQ.py` uses the pickle by default.
 
-## Contact
-ibclab.kr@gmail.com
+## Reproducing the manuscript's results
+
+See [`evaluation/README.md`](evaluation/README.md).
+
+## License
+
+MIT. See `LICENSE`.

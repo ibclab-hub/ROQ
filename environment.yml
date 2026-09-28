@@ -1,0 +1,16 @@
+name: roq
+
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - python=3.8.12
+  - numpy=1.22.4
+  - pandas=1.5.3
+  - scikit-learn=1.2.2
+  - xgboost=1.7.6
+  - pysam=0.19.1
+  - samtools=1.9
+  - bedops=2.4.38
+  - perl=5.26.1
